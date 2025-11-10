@@ -1,0 +1,101 @@
+[
+  {
+    "name": "Đắk Lắk",
+    "location": "Tây Nguyên, Việt Nam",
+    "price": "$65/Người",
+    "rating": 4.5,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709945/daklak_jdtnlr.jpg",
+    "description": "Khám phá văn hóa cồng chiêng Tây Nguyên, thưởng thức cà phê Buôn Ma Thuột và ngắm thác Dray Nur hùng vĩ.",
+    "startDate": "2025-12-01T00:00:00.000Z"
+  },
+  {
+    "name": "Đà Lạt",
+    "location": "Lâm Đồng, Việt Nam",
+    "price": "$75/Người",
+    "rating": 4.8,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709945/dalat_ch1k0g.jpg",
+    "description": "Thành phố ngàn hoa, không khí se lạnh, hồ Xuân Hương và những vườn dâu tây rực rỡ sắc màu.",
+    "startDate": "2025-12-03T00:00:00.000Z"
+  },
+  {
+    "name": "Đà Nẵng",
+    "location": "Đà Nẵng, Việt Nam",
+    "price": "$79/Người",
+    "rating": 4.9,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709945/danang_syjucl.jpg",
+    "description": "Thành phố đáng sống với bãi biển Mỹ Khê, cầu Rồng phun lửa và khu du lịch Bà Nà Hills.",
+    "startDate": "2025-12-05T00:00:00.000Z"
+  },
+  {
+    "name": "Hà Giang",
+    "location": "Đông Bắc, Việt Nam",
+    "price": "$82/Người",
+    "rating": 4.7,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709946/hagiang_gh0ido.jpg",
+    "description": "Chinh phục đèo Mã Pì Lèng, ngắm hoa tam giác mạch và trải nghiệm cao nguyên đá Đồng Văn.",
+    "startDate": "2025-12-08T00:00:00.000Z"
+  },
+  {
+    "name": "Hà Nội",
+    "location": "Thủ đô Hà Nội, Việt Nam",
+    "price": "$70/Người",
+    "rating": 4.6,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709947/hanoi_q2zyzl.jpg",
+    "description": "Thủ đô nghìn năm văn hiến với hồ Hoàn Kiếm, phố cổ, ẩm thực đặc sắc và nét văn hóa truyền thống.",
+    "startDate": "2025-12-10T00:00:00.000Z"
+  },
+  {
+    "name": "TP. Hồ Chí Minh",
+    "location": "Miền Nam, Việt Nam",
+    "price": "$68/Người",
+    "rating": 4.7,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709950/hcm_losz3o.jpg",
+    "description": "Trung tâm kinh tế sôi động, với phố đi bộ Nguyễn Huệ, chợ Bến Thành và tòa nhà Landmark 81 hiện đại.",
+    "startDate": "2025-12-12T00:00:00.000Z"
+  },
+  {
+    "name": "Huế",
+    "location": "Thừa Thiên Huế, Việt Nam",
+    "price": "$74/Người",
+    "rating": 4.8,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709951/hue_wfxm9c.jpg",
+    "description": "Cố đô Huế với Hoàng thành, sông Hương, chùa Thiên Mụ và những món ăn cung đình truyền thống.",
+    "startDate": "2025-12-15T00:00:00.000Z"
+  },
+  {
+    "name": "Nha Trang",
+    "location": "Khánh Hòa, Việt Nam",
+    "price": "$59/Người",
+    "rating": 4.7,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709952/nhatrang_onk23l.jpg",
+    "description": "Bãi biển xanh biếc, hải sản tươi ngon và các khu resort ven biển nổi tiếng thế giới.",
+    "startDate": "2025-12-18T00:00:00.000Z"
+  },
+  {
+    "name": "Phú Quốc",
+    "location": "Kiên Giang, Việt Nam",
+    "price": "$89/Người",
+    "rating": 4.9,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709954/phuquoc_igr6sm.jpg",
+    "description": "Thiên đường đảo ngọc với bãi biển cát trắng, hoàng hôn tuyệt đẹp và khu vui chơi VinWonders.",
+    "startDate": "2025-12-20T00:00:00.000Z"
+  },
+  {
+    "name": "Phú Yên",
+    "location": "Miền Trung, Việt Nam",
+    "price": "$72/Người",
+    "rating": 4.6,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709954/phuyen_retks9.jpg",
+    "description": "Nổi tiếng với Ghềnh Đá Đĩa, bãi Xép trong phim 'Tôi thấy hoa vàng trên cỏ xanh' và vẻ đẹp hoang sơ yên bình.",
+    "startDate": "2025-12-22T00:00:00.000Z"
+  },
+  {
+    "name": "Sa Pa",
+    "location": "Lào Cai, Việt Nam",
+    "price": "$69/Người",
+    "rating": 4.8,
+    "image": "https://res.cloudinary.com/dv503ep4p/image/upload/v1762709956/sapa_kyh1ns.jpg",
+    "description": "Trải nghiệm khí hậu mát lạnh, ruộng bậc thang và văn hóa độc đáo của các dân tộc thiểu số vùng cao.",
+    "startDate": "2025-12-25T00:00:00.000Z"
+  }
+]

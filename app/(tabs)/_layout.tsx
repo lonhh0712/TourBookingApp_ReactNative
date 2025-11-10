@@ -21,6 +21,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="upload-tour"
+        options={{
+          title: "Đăng tour",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="add-circle-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="search"
         options={{
           title: "Tìm kiếm",
