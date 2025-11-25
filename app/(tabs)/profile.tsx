@@ -1,17 +1,93 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { useCallback, useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  ImageSourcePropType,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { auth, getUserProfile } from "../../backend/firebaseService";
+
+type ProfileData = {
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+  role?: string;
+} & Record<string, unknown>;
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+
+  const loadProfile = useCallback(
+    async (user: User, showSpinner = false) => {
+      if (showSpinner) {
+        setLoading(true);
+      }
+
+      try {
+        const data = (await getUserProfile(user.uid)) as ProfileData | null;
+        const normalized: ProfileData = {
+          ...data,
+          displayName: data?.displayName ?? user.displayName ?? "User",
+          email: data?.email ?? user.email ?? "",
+          photoURL: data?.photoURL ?? user.photoURL ?? undefined,
+        };
+        setProfile(normalized);
+      } catch (error) {
+        console.error("getUserProfile error", error);
+        Alert.alert("Lỗi", "Không thể tải thông tin người dùng.");
+        setProfile({
+          displayName: user.displayName ?? "User",
+          email: user.email ?? "",
+          photoURL: user.photoURL ?? undefined,
+        });
+      } finally {
+        if (showSpinner) {
+          setLoading(false);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setProfile(null);
+        setLoading(false);
+        router.replace("/(auth)/sign-in");
+        return;
+      }
+      setFirebaseUser(firebaseUser);
+      await loadProfile(firebaseUser, true);
+    });
+
+    return unsubscribe;
+  }, [router, loadProfile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const current = auth.currentUser ?? firebaseUser;
+      if (!current) {
+        router.replace("/(auth)/sign-in");
+        return;
+      }
+
+      loadProfile(current).catch((error) =>
+        console.error("refresh profile error", error)
+      );
+    }, [firebaseUser, loadProfile, router])
+  );
 
   const handleLogout = async () => {
     Alert.alert("Đăng xuất", "Bạn có chắc muốn đăng xuất không?", [
@@ -20,11 +96,29 @@ export default function ProfileScreen() {
         text: "Đăng xuất",
         style: "destructive",
         onPress: async () => {
-          router.replace("/(auth)/sign-in"); // Điều hướng về trang đăng nhập
+          try {
+            await signOut(auth);
+          } finally {
+            router.replace("/(auth)/sign-in");
+          }
         },
       },
     ]);
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007BFF" />
+      </View>
+    );
+  }
+
+  const displayName = profile?.displayName ?? "User";
+  const email = profile?.email ?? "user@gmail.com";
+  const avatarSource: ImageSourcePropType = profile?.photoURL
+    ? { uri: String(profile.photoURL) }
+    : require("../../assets/images/user.png");
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -35,12 +129,9 @@ export default function ProfileScreen() {
 
       {/* Avatar */}
       <View style={styles.profileSection}>
-        <Image
-          source={require("../../assets/images/user.png")}
-          style={styles.avatar}
-        />
-        <Text style={styles.username}>user</Text>
-        <Text style={styles.email}>user@gmail.com</Text>
+        <Image source={avatarSource} style={styles.avatar} />
+        <Text style={styles.username}>{displayName}</Text>
+        <Text style={styles.email}>{email}</Text>
       </View>
 
       {/* Menu */}
@@ -54,15 +145,21 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={20} color="#A1A1AA" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push({ pathname: "/bookmark" as any })}
+        >
           <Feather name="bookmark" size={20} color="#111" />
           <Text style={styles.menuText}>Đã lưu</Text>
           <Ionicons name="chevron-forward" size={20} color="#A1A1AA" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push({ pathname: "/booked" as any })}
+        >
           <Feather name="map-pin" size={20} color="#111" />
-          <Text style={styles.menuText}>Những chuyến đã đi qua</Text>
+          <Text style={styles.menuText}>Những chuyến đã book</Text>
           <Ionicons name="chevron-forward" size={20} color="#A1A1AA" />
         </TouchableOpacity>
 
@@ -83,6 +180,12 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
   container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 20 },
   header: { marginTop: 50, alignItems: "center" },
   headerTitle: { fontSize: 18, fontWeight: "600", color: "#111827" },

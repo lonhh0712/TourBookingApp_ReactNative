@@ -124,6 +124,8 @@ export default function UploadTourScreen() {
       {showDatePicker && (
         <DateTimePicker
           value={startDate}
+          textColor="#111827"
+          accentColor="#111827"
           mode="date"
           display={Platform.OS === "ios" ? "spinner" : "default"}
           onChange={(event, selectedDate) => {
