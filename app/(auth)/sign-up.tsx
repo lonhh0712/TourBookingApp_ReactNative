@@ -2,12 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { sign_up } from "../../backend/firebaseService";
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -15,6 +18,58 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getErrorMessage = (err: unknown) => {
+    const code = (err as { code?: string })?.code;
+    const message = (err as { message?: string })?.message;
+    switch (code) {
+      case "auth/email-already-in-use":
+        return "Email đã được sử dụng.";
+      case "auth/weak-password":
+        return "Mật khẩu quá yếu. Vui lòng đặt mật khẩu mạnh hơn.";
+      case "auth/invalid-email":
+        return "Định dạng email không hợp lệ.";
+      case "auth/network-request-failed":
+        return "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.";
+      case "auth/internal-error":
+        return "Máy chủ đang gặp sự cố. Vui lòng thử lại sau.";
+      default:
+        return message ?? "Đăng ký thất bại. Vui lòng thử lại.";
+    }
+  };
+
+  const handleSignUp = async () => {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedName || !trimmedEmail || !trimmedPassword) {
+      setError("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+      await sign_up({
+        email: trimmedEmail,
+        password: trimmedPassword,
+        displayName: trimmedName,
+      });
+      Alert.alert("Thành công", "Tạo tài khoản thành công!", [
+        { text: "Tiếp tục", onPress: () => router.replace("/(tabs)/home") },
+      ]);
+    } catch (err) {
+      console.error("Sign up error", err);
+      const message = getErrorMessage(err);
+      setError(message);
+      Alert.alert("Lỗi", message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -32,7 +87,7 @@ export default function SignUpScreen() {
       {/* Ô nhập tên */}
       <TextInput
         style={styles.input}
-        placeholder="User"
+        placeholder="Name"
         placeholderTextColor="#9CA3AF"
         value={name}
         onChangeText={setName}
@@ -71,8 +126,18 @@ export default function SignUpScreen() {
       </View>
 
       {/* Nút đăng ký */}
-      <TouchableOpacity style={styles.signUpButton}>
-        <Text style={styles.signUpText}>Đăng ký</Text>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      <TouchableOpacity
+        style={[styles.signUpButton, submitting && styles.buttonDisabled]}
+        onPress={handleSignUp}
+        disabled={submitting}
+      >
+        {submitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.signUpText}>Đăng ký</Text>
+        )}
       </TouchableOpacity>
 
       {/* Liên kết đăng nhập */}
@@ -155,5 +220,13 @@ const styles = StyleSheet.create({
     color: "#007BFF",
     fontSize: 14,
     fontWeight: "600",
+  },
+  errorText: {
+    color: "#EF4444",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
 });

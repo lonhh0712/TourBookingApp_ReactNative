@@ -2,18 +2,60 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { sign_in } from "../../backend/firebaseService";
 
 export default function SignInScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getErrorMessage = (err: unknown) => {
+    const code = (err as { code?: string })?.code;
+    switch (code) {
+      case "auth/invalid-credential":
+      case "auth/wrong-password":
+      case "auth/user-not-found":
+        return "Email hoặc mật khẩu không đúng.";
+      case "auth/invalid-email":
+        return "Định dạng email không hợp lệ.";
+      default:
+        return "Đăng nhập thất bại. Vui lòng thử lại.";
+    }
+  };
+
+  const handleSignIn = async () => {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setError("Vui lòng nhập đầy đủ email và mật khẩu.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+      await sign_in({ email: trimmedEmail, password: trimmedPassword });
+      router.replace("/(tabs)/home");
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setError(message);
+      Alert.alert("Lỗi", message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -61,10 +103,18 @@ export default function SignInScreen() {
       </View>
 
       {/* Nút đăng nhập */}
-      <TouchableOpacity style={styles.signInButton}
-        onPress={() => router.push("/(tabs)/home")}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      <TouchableOpacity
+        style={[styles.signInButton, submitting && styles.buttonDisabled]}
+        onPress={handleSignIn}
+        disabled={submitting}
       >
-        <Text style={styles.signInText}>Đăng nhập</Text>
+        {submitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.signInText}>Đăng nhập</Text>
+        )}
       </TouchableOpacity>
 
       {/* Liên kết đăng ký */}
@@ -147,5 +197,13 @@ const styles = StyleSheet.create({
     color: "#007BFF",
     fontSize: 14,
     fontWeight: "600",
+  },
+  errorText: {
+    color: "#EF4444",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
 });
