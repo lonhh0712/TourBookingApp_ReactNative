@@ -163,6 +163,15 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={20} color="#A1A1AA" />
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/manage-tours")}
+        >
+          <Feather name="briefcase" size={20} color="#111" />
+          <Text style={styles.menuText}>Quản lý đăng tour</Text>
+          <Ionicons name="chevron-forward" size={20} color="#A1A1AA" />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.menuItem}>
           <Feather name="settings" size={20} color="#111" />
           <Text style={styles.menuText}>Cài đặt</Text>
