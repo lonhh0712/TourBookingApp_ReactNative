@@ -12,7 +12,12 @@ import {
   TextInput,
   TouchableOpacity,
 } from "react-native";
-import { addTourToFirestore, uploadImageToCloudinary } from "../../backend/firebaseService";
+import {
+  addTourToFirestore,
+  auth,
+  getUserProfile,
+  uploadImageToCloudinary,
+} from "../../backend/firebaseService";
 
 export default function UploadTourScreen() {
   const [name, setName] = useState("");
@@ -44,9 +49,36 @@ export default function UploadTourScreen() {
       return;
     }
 
+    if (!startDate || Number.isNaN(startDate.getTime())) {
+      Alert.alert("Ngày không hợp lệ", "Vui lòng chọn ngày khởi hành hợp lệ.");
+      return;
+    }
+
+    const now = new Date();
+    if (startDate.getTime() <= now.getTime()) {
+      Alert.alert(
+        "Ngày khởi hành không hợp lệ",
+        "Ngày khởi hành phải sau ngày hiện tại."
+      );
+      return;
+    }
+
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      Alert.alert("Bạn cần đăng nhập", "Vui lòng đăng nhập để đăng tour mới.");
+      return;
+    }
+
     setLoading(true);
     try {
+      const userProfile = await getUserProfile(currentUser.uid);
       const imageUrl = await uploadImageToCloudinary(imageUri);
+      const ownerName =
+        userProfile?.displayName ||
+        currentUser.displayName ||
+        currentUser.email ||
+        "Người dùng";
 
       await addTourToFirestore({
         name,
@@ -56,6 +88,10 @@ export default function UploadTourScreen() {
         image: imageUrl,
         rating: 4.5,
         startDate: startDate.toISOString(), // ✅ thêm startDate
+        ownerId: currentUser.uid,
+        ownerName,
+        ownerEmail: userProfile?.email || currentUser.email || "",
+        ownerPhoto: userProfile?.photoURL || currentUser.photoURL || null,
       });
 
       Alert.alert("Thành công", "Tour đã được đăng!");

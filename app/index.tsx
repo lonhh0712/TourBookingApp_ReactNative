@@ -9,7 +9,7 @@ export default function OnboardScreen() {
     <View style={styles.container}>
       {/* Hình minh họa */}
       <Image
-        source={require("../assets/images/onboard.png")}
+        source={require("../assets/images/onboard.jpg")}
         style={styles.image}
         resizeMode="cover"
       />

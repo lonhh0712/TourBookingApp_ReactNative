@@ -20,8 +20,10 @@ import {
   limit,
   orderBy,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 
 // -----------------------------------------------------------
@@ -56,6 +58,14 @@ type SignInPayload = {
 
 type TourRecord = { id: string } & Record<string, unknown>;
 
+export type PublicUserRecord = {
+  uid: string;
+  displayName?: string | null;
+  email?: string | null;
+  role?: string | null;
+  photoURL?: string | null;
+};
+
 // ===========================================================
 // 🔧 Cloudinary Config
 // ===========================================================
@@ -77,6 +87,15 @@ export async function getTours() {
 export async function addTourToFirestore(tour: any) {
   if (!tour.name || !tour.location || !tour.price || !tour.image || !tour.startDate) {
     throw new Error("Thiếu dữ liệu tour");
+  }
+
+  const startDateValue = new Date(tour.startDate);
+  if (Number.isNaN(startDateValue.getTime())) {
+    throw new Error("Ngày khởi hành không hợp lệ");
+  }
+
+  if (startDateValue.getTime() <= Date.now()) {
+    throw new Error("Ngày khởi hành phải lớn hơn hiện tại");
   }
 
   await addDoc(collection(db, "tours"), {
@@ -132,6 +151,17 @@ export async function updateUserProfile(uid: string, data: any) {
   return true;
 }
 
+export async function getAllUsers(roleFilter?: string): Promise<PublicUserRecord[]> {
+  const usersRef = collection(db, "users");
+  const usersQuery = roleFilter ? query(usersRef, where("role", "==", roleFilter)) : usersRef;
+  const snapshot = await getDocs(usersQuery);
+
+  return snapshot.docs.map((docSnapshot) => ({
+    uid: docSnapshot.id,
+    ...(docSnapshot.data() as Record<string, unknown>),
+  }));
+}
+
 
 
 // ===========================================================
@@ -178,6 +208,45 @@ export async function getToursByIds(tourIds: string[]): Promise<TourRecord[]> {
   );
 
   return results.filter((tour): tour is TourRecord => Boolean(tour));
+}
+
+export async function getToursByOwner(ownerId: string) {
+  if (!ownerId) return [];
+
+  const toursRef = collection(db, "tours");
+  const ownerQuery = query(toursRef, where("ownerId", "==", ownerId));
+  const snapshot = await getDocs(ownerQuery);
+
+  return snapshot.docs.map((docSnapshot) => ({
+    id: docSnapshot.id,
+    ...docSnapshot.data(),
+  }));
+}
+
+export async function updateTour(tourId: string, updates: Record<string, unknown>) {
+  if (!tourId) {
+    throw new Error("Thiếu mã tour để cập nhật");
+  }
+
+  const normalizedUpdates = { ...updates };
+  if (updates && typeof updates === "object" && "startDate" in updates) {
+    const value = (updates as Record<string, unknown>).startDate;
+    if (value instanceof Date) {
+      normalizedUpdates.startDate = value.toISOString();
+    }
+  }
+
+  await updateDoc(doc(db, "tours", tourId), normalizedUpdates);
+  return true;
+}
+
+export async function deleteTour(tourId: string) {
+  if (!tourId) {
+    throw new Error("Thiếu mã tour để xoá");
+  }
+
+  await deleteDoc(doc(db, "tours", tourId));
+  return true;
 }
 
 
@@ -410,7 +479,119 @@ export async function maybeNotifyUpcomingDepartures(uid: string) {
 
 
 // ===========================================================
-// 🔹 7️⃣ UPLOAD ẢNH CLOUDINARY
+// 🔹 7️⃣ MESSAGING (Chat real-time)
+// ===========================================================
+
+export type ConversationParticipantProfile = {
+  uid: string;
+  displayName?: string | null;
+  photoURL?: string | null;
+  role?: string | null;
+};
+
+type StoredConversationParticipantProfile = {
+  displayName?: string | null;
+  photoURL?: string | null;
+  role?: string | null;
+};
+
+export type ConversationRecord = {
+  id: string;
+  participants: string[];
+  participantProfiles?: Record<string, StoredConversationParticipantProfile>; // keyed by uid
+  lastMessage?: string | null;
+  lastMessageSender?: string | null;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
+export type MessagePayload = {
+  senderId: string;
+  text: string;
+};
+
+function buildConversationId(participants: string[]) {
+  return participants.slice().sort().join("_");
+}
+
+export async function createOrGetConversation(
+  currentUser: ConversationParticipantProfile,
+  targetUser: ConversationParticipantProfile
+) {
+  if (!currentUser?.uid || !targetUser?.uid) {
+    throw new Error("Thiếu thông tin người tham gia");
+  }
+
+  if (currentUser.uid === targetUser.uid) {
+    throw new Error("Không thể tạo cuộc trò chuyện với chính bạn");
+  }
+
+  const participants = [currentUser.uid, targetUser.uid];
+  const conversationId = buildConversationId(participants);
+  const conversationRef = doc(db, "conversations", conversationId);
+  const snapshot = await getDoc(conversationRef);
+
+  const participantProfiles: Record<string, StoredConversationParticipantProfile> = {
+    [currentUser.uid]: {
+      displayName: currentUser.displayName ?? null,
+      photoURL: currentUser.photoURL ?? null,
+      role: currentUser.role ?? null,
+    },
+    [targetUser.uid]: {
+      displayName: targetUser.displayName ?? null,
+      photoURL: targetUser.photoURL ?? null,
+      role: targetUser.role ?? null,
+    },
+  };
+
+  if (!snapshot.exists()) {
+    await setDoc(conversationRef, {
+      participants,
+      participantProfiles,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      lastMessage: null,
+      lastMessageSender: null,
+    });
+  } else {
+    await updateDoc(conversationRef, {
+      participants,
+      participantProfiles,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  return conversationRef;
+}
+
+export async function sendConversationMessage(
+  conversationId: string,
+  payload: MessagePayload
+) {
+  if (!conversationId || !payload?.senderId || !payload?.text?.trim()) {
+    throw new Error("Thiếu dữ liệu tin nhắn");
+  }
+
+  const trimmed = payload.text.trim();
+  const messagesRef = collection(db, `conversations/${conversationId}/messages`);
+
+  await addDoc(messagesRef, {
+    senderId: payload.senderId,
+    text: trimmed,
+    createdAt: serverTimestamp(),
+  });
+
+  await updateDoc(doc(db, "conversations", conversationId), {
+    lastMessage: trimmed,
+    lastMessageSender: payload.senderId,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+
+
+// ===========================================================
+// 🔹 8️⃣ UPLOAD ẢNH CLOUDINARY
 // ===========================================================
 
 export async function uploadImageToCloudinary(uri: string) {

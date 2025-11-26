@@ -1,18 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
-import { auth, createBooking, getUserProfile } from "../backend/firebaseService";
+import {
+    auth,
+    createBooking,
+    createOrGetConversation,
+    getUserProfile,
+    sendConversationMessage,
+    type ConversationParticipantProfile,
+} from "../backend/firebaseService";
 
 type TourBookingParams = {
   id?: string;
@@ -24,7 +31,15 @@ type TourBookingParams = {
   startDate?: string;
   description?: string;
   peopleCount?: string;
+  ownerId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerPhoto?: string;
+  ownerRole?: string;
 };
+
+const resolveParamValue = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -51,6 +66,18 @@ export default function PaymentScreen() {
   const [phone, setPhone] = useState("");
   const [loadingUserInfo, setLoadingUserInfo] = useState(true);
   const [savingBooking, setSavingBooking] = useState(false);
+  const [bookerProfile, setBookerProfile] = useState<Record<string, unknown> | null>(null);
+
+  const ownerInfo = useMemo(() => {
+    const ownerId = resolveParamValue(params.ownerId as string | string[] | undefined);
+    return {
+      id: ownerId ?? null,
+      name: resolveParamValue(params.ownerName as string | string[] | undefined) ?? null,
+      email: resolveParamValue(params.ownerEmail as string | string[] | undefined) ?? null,
+      photo: resolveParamValue(params.ownerPhoto as string | string[] | undefined) ?? null,
+      role: resolveParamValue(params.ownerRole as string | string[] | undefined) ?? null,
+    };
+  }, [params.ownerEmail, params.ownerId, params.ownerName, params.ownerPhoto, params.ownerRole]);
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -62,6 +89,7 @@ export default function PaymentScreen() {
         }
 
         const profile = await getUserProfile(user.uid);
+        setBookerProfile(profile ?? null);
         setFullName(String(profile?.displayName ?? user.displayName ?? ""));
         setEmail(String(profile?.email ?? user.email ?? ""));
         setPhone(String(profile?.phone ?? ""));
@@ -93,6 +121,92 @@ export default function PaymentScreen() {
       ? `${description.slice(0, 157)}...`
       : description;
   }, [description]);
+
+  const ensureConversationWithOwner = useCallback(
+    async (bookingId: string) => {
+      const currentUser = auth.currentUser;
+      const ownerId = ownerInfo.id;
+
+      if (!currentUser || !ownerId || ownerId === currentUser.uid) {
+        return;
+      }
+
+      try {
+        const currentProfile =
+          bookerProfile ?? (await getUserProfile(currentUser.uid).catch(() => null));
+
+        let ownerProfile: Record<string, unknown> | null = null;
+        if (!ownerInfo.name || !ownerInfo.email || !ownerInfo.photo || !ownerInfo.role) {
+          ownerProfile = await getUserProfile(ownerId).catch(() => null);
+        }
+
+        const viewerParticipant: ConversationParticipantProfile = {
+          uid: currentUser.uid,
+          displayName:
+            (currentProfile?.displayName as string | undefined) ||
+            currentUser.displayName ||
+            currentUser.email ||
+            "Bạn",
+          photoURL:
+            (currentProfile?.photoURL as string | undefined) ||
+            currentUser.photoURL ||
+            null,
+          role: (currentProfile?.role as string | undefined) ?? undefined,
+        };
+
+        const ownerParticipant: ConversationParticipantProfile = {
+          uid: ownerId,
+          displayName:
+            ownerInfo.name ||
+            (ownerProfile?.displayName as string | undefined) ||
+            ownerInfo.email ||
+            "Người đăng",
+          photoURL:
+            ownerInfo.photo ||
+            (ownerProfile?.photoURL as string | undefined) ||
+            null,
+          role:
+            ownerInfo.role ||
+            (ownerProfile?.role as string | undefined) ||
+            undefined,
+        };
+
+        const conversationRef = await createOrGetConversation(
+          viewerParticipant,
+          ownerParticipant
+        );
+
+        const tripDateLabel = startDate
+          ? (() => {
+              const parsed = new Date(startDate);
+              return Number.isNaN(parsed.getTime())
+                ? "chưa xác định"
+                : parsed.toLocaleDateString("vi-VN");
+            })()
+          : "chưa xác định";
+
+        const messageLines = [
+          `Xin chào ${fullName || viewerParticipant.displayName}, tôi là ${
+            ownerParticipant.displayName || "người đăng"
+          }.`,
+          `Hệ thống đã ghi nhận yêu cầu đặt tour ${name ?? "không tên"} khởi hành ${tripDateLabel}.`,
+          `Số khách: ${peopleCount}.`,
+          phone ? `Số liên hệ: ${phone}.` : null,
+          email ? `Email: ${email}.` : null,
+          bookingId ? `Mã đặt tour: ${bookingId}.` : null,
+          "Tôi sẽ sớm liên hệ để xác nhận chi tiết. Cảm ơn bạn!",
+        ].filter(Boolean);
+
+        await sendConversationMessage(conversationRef.id, {
+          senderId: ownerParticipant.uid,
+          text: messageLines.join(" "),
+        });
+      } catch (error) {
+        console.error("auto connect owner chat failed", error);
+      }
+    },
+    [bookerProfile, email, fullName, name, ownerInfo, peopleCount, phone, startDate]
+  );
 
   const handleConfirmBookTour = async () => {
     if (savingBooking) {
@@ -133,9 +247,13 @@ export default function PaymentScreen() {
         price: price ?? null,
         rating: rating ?? null,
         image: image ?? null,
+        ownerId: ownerInfo.id ?? null,
+        ownerName: ownerInfo.name ?? null,
+        ownerEmail: ownerInfo.email ?? null,
       } as Record<string, unknown>;
 
       const bookingRef = await createBooking(bookingPayload);
+      await ensureConversationWithOwner(bookingRef.id);
 
       router.push({
         pathname: "/payment",
